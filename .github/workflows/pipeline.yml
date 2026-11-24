@@ -100,3 +100,77 @@ jobs:
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
           docker push "$IMAGE:$GITHUB_SHA"
           docker push "$IMAGE:latest"
+
+  deploy:
+    name: 5 Deploy (inactive env on EC2)
+    if: github.ref == 'refs/heads/deploy/production'
+    needs: [deliver]
+    runs-on: ubuntu-latest
+    outputs:
+      color: ${{ steps.dep.outputs.color }}
+      port: ${{ steps.dep.outputs.port }}
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/campus-events-api:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Deploy to inactive colour
+        id: dep
+        shell: bash
+        run: |
+          install -m 600 /dev/null key.pem
+          printf '%s\n' "$EC2_SSH_KEY" > key.pem
+          OUT=$(ssh -i key.pem -o StrictHostKeyChecking=accept-new "ec2-user@$EC2_HOST" "bash -s -- $IMAGE" < deploy/deploy.sh | tail -n1)
+          rm -f key.pem
+          echo "Deployed to: $OUT"
+          echo "color=${OUT%% *}" >> "$GITHUB_OUTPUT"
+          echo "port=${OUT##* }" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: 6a k6 E2E and performance
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      K6_API_KEY: ${{ secrets.K6_API_KEY }}
+      TEST_PORT: ${{ needs.deploy.outputs.port }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run k6 against inactive environment
+        run: |
+          docker run --rm -i -e BASE_URL="http://$EC2_HOST:$TEST_PORT" -e API_KEY="$K6_API_KEY" \
+            grafana/k6 run - < k6/e2e.js
+
+  switch:
+    name: 6b Switch traffic (blue/green)
+    needs: [deploy, e2e]
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      COLOR: ${{ needs.deploy.outputs.color }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Point nginx to new colour
+        shell: bash
+        run: |
+          install -m 600 /dev/null key.pem
+          printf '%s\n' "$EC2_SSH_KEY" > key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=accept-new "ec2-user@$EC2_HOST" "bash -s -- $COLOR" < deploy/switch.sh
+          rm -f key.pem
+          curl -fsS "http://$EC2_HOST/health"
+
+  notify:
+    name: Failure notice
+    if: failure()
+    needs: [lint, test, sonar, snyk, build, deliver, deploy, e2e, switch]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write failure summary
+        run: |
+          {
+            echo "## Pipeline FAILED on ${GITHUB_REF_NAME}"
+            echo "Commit: ${GITHUB_SHA}"
+            echo "A required stage failed. Later stages were skipped and the active production environment was not changed."
+          } >> "$GITHUB_STEP_SUMMARY"
