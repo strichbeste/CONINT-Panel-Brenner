@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run lint
       - name: ESLint report
         if: always()
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
@@ -65,11 +65,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Snyk test (fails on high/critical)
-        run: npx --yes snyk test --severity-threshold=high
+        uses: snyk/actions/node@11b673cfb4b0dc0d860a1323caa199d54950dcce # master
+        with:
+          args: --severity-threshold=high
       - name: Snyk monitor (dashboard)
-        run: npx --yes snyk monitor
+        uses: snyk/actions/node@11b673cfb4b0dc0d860a1323caa199d54950dcce # master
+        with:
+          command: monitor
 
   build:
     name: 3 Build (Docker)
