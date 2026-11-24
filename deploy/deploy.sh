@@ -4,7 +4,7 @@ set -euo pipefail
 
 IMAGE="$1"
 ACTIVE=$(cat /opt/campus/active)
-if [ "$ACTIVE" = "blue" ]; then NEW=green; PORT=3002; else NEW=blue; PORT=3001; fi
+if [[ "$ACTIVE" == "blue" ]]; then NEW=green; PORT=3002; else NEW=blue; PORT=3001; fi
 
 docker pull "$IMAGE" >&2
 docker rm -f "campus-$NEW" > /dev/null 2>&1 || true

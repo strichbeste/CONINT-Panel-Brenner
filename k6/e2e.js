@@ -18,6 +18,7 @@ export const options = {
 
 const json = { 'Content-Type': 'application/json' };
 const auth = { 'Content-Type': 'application/json', 'x-api-key': KEY };
+const authNoBody = { 'x-api-key': KEY };
 const body = JSON.stringify({
   name: 'k6 event',
   description: 'created by k6',
@@ -55,7 +56,7 @@ export default function () {
     check(http.put(`${BASE}/events/${id}`, body, { headers: auth }), {
       'update 200': (r) => r.status === 200,
     });
-    check(http.del(`${BASE}/events/${id}`, null, { headers: auth }), {
+    check(http.del(`${BASE}/events/${id}`, null, { headers: authNoBody }), {
       'delete 204': (r) => r.status === 204,
     });
     check(http.get(`${BASE}/events/${id}`), { 'deleted -> 404': (r) => r.status === 404 });
