@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: localdevpw
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 10
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres:localdevpw@db:5432/postgres
+      POSTHOG_KEY: ${POSTHOG_KEY:-}
+      POSTHOG_PERSONAL_KEY: ${POSTHOG_PERSONAL_KEY:-}
+      POSTHOG_HOST: ${POSTHOG_HOST:-https://eu.i.posthog.com}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
