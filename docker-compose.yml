@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: localdevpw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     ports:
       - "5432:5432"
     healthcheck:
@@ -12,7 +12,7 @@ services:
   api:
     build: .
     environment:
-      DATABASE_URL: postgres://postgres:localdevpw@db:5432/postgres
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
       POSTHOG_KEY: ${POSTHOG_KEY:-}
       POSTHOG_PERSONAL_KEY: ${POSTHOG_PERSONAL_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-https://eu.i.posthog.com}
