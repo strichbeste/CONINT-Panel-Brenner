@@ -35,7 +35,7 @@ function build() {
 
   app.get('/health', async () => ({ status: 'ok' }));
 
-  app.post('/keys/rotate', { preHandler: auth }, async (req) => {
+  app.post('/keys/rotate', { onRequest: auth }, async (req) => {
     const key = newKey();
     const c = await pool.connect();
     try {
@@ -52,7 +52,7 @@ function build() {
     return { api_key: key };
   });
 
-  app.post('/events', { preHandler: auth, schema: { body: eventBody } }, async (req, reply) => {
+  app.post('/events', { onRequest: auth, schema: { body: eventBody } }, async (req, reply) => {
     const { name, description, location, event_date } = req.body;
     const r = await pool.query(
       `INSERT INTO events(name,description,location,event_date)
@@ -61,7 +61,7 @@ function build() {
     return reply.code(201).send(r.rows[0]);
   });
 
-  app.put('/events/:id', { preHandler: auth, schema: { body: eventBody, params: idParams } },
+  app.put('/events/:id', { onRequest: auth, schema: { body: eventBody, params: idParams } },
     async (req, reply) => {
       const { name, description, location, event_date } = req.body;
       const r = await pool.query(
@@ -71,7 +71,7 @@ function build() {
       return r.rowCount ? r.rows[0] : reply.code(404).send({ error: 'Event not found' });
     });
 
-  app.delete('/events/:id', { preHandler: auth, schema: { params: idParams } },
+  app.delete('/events/:id', { onRequest: auth, schema: { params: idParams } },
     async (req, reply) => {
       const r = await pool.query('DELETE FROM events WHERE id=$1', [req.params.id]);
       return r.rowCount ? reply.code(204).send() : reply.code(404).send({ error: 'Event not found' });
