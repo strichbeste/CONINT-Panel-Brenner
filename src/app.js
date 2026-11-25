@@ -33,7 +33,7 @@ function build() {
     req.keyId = r.rows[0].id;
   }
 
-  app.get('/health', async () => ({ status: 'ok' }));
+  app.get('/health', async () => ({ status: 'ok', version: 'live-demo' }));
 
   app.post('/keys/rotate', { onRequest: auth }, async (req) => {
     const key = newKey();
